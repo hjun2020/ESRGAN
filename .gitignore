@@ -13,5 +13,10 @@
 
 *.png
 *.pth
+*.jpg
+*.pt
+
+
 
 __pycache__/
+build/
