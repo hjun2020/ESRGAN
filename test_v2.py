@@ -5,6 +5,7 @@ import numpy as np
 import torch
 import RRDBNet_arch as arch
 import argparse
+import torch.nn as nn
 
 parser = argparse.ArgumentParser()
 
@@ -22,10 +23,28 @@ device = torch.device('cuda')  # if you want to run on CPU, change 'cuda' -> cpu
 test_img_folder = f'{opt.test_img_folder}/*'
 print(test_img_folder)
 
-model = arch.RRDBNet(3, 3, 64, 23, gc=32)
-model.load_state_dict(torch.load(model_path), strict=True)
-model.eval()
-model = model.to(device)
+
+# Define the pre-trained model
+pretrained_model = arch.RRDBNet(3, 3, 64, 23, gc=32)
+# pretrained_model.load_state_dict(torch.load(model_path), strict=True)
+# pretrained_model.eval()
+
+# Define the new layers to add to the model
+new_layers = nn.Sequential(
+    nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1),
+    nn.ReLU(),
+    nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
+    nn.ReLU(),
+    nn.Conv2d(64, 3, kernel_size=3, stride=1, padding=1)
+)
+
+# Define the complete model
+model = nn.Sequential(
+    pretrained_model,
+    new_layers
+)
+model.load_state_dict(torch.load('saved_models/generator_45.pth'), strict=True)
+model.to(device)
 
 print('Model path {:s}. \nTesting...'.format(model_path))
 

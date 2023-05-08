@@ -10,13 +10,16 @@ from torch.utils.data import DataLoader
 import argparse
 from datasets import *
 from torch.autograd import Variable
+from torchvision.utils import save_image, make_grid
 
 parser = argparse.ArgumentParser()
 
 
 
-parser.add_argument("--dataset_name", type=str, default="img_align_celeba", help="name of the dataset")
+parser.add_argument("--dataset_folder", type=str, default="/home/ubuntu/PyTorch-GAN/data/BSR/BSDS500/data/images/train", help="name of the dataset")
 parser.add_argument("--hr_height", type=int, default=256, help="high res. image height")
+parser.add_argument("--sample_interval", type=int, default=100, help="interval between saving image samples")
+parser.add_argument("--checkpoint_interval", type=int, default=1000, help="batch interval between model checkpoints")
 opt = parser.parse_args()
 print(opt)
 
@@ -49,6 +52,7 @@ model = nn.Sequential(
     pretrained_model,
     new_layers
 )
+model.load_state_dict(torch.load('saved_models/generator_45.pth'), strict=True)
 model.to(device)
 
 criterion_pixel = torch.nn.L1Loss().to(device)
@@ -61,7 +65,7 @@ for param in pretrained_model.parameters():
 optimizer = optim.Adam(new_layers.parameters(), lr=0.001)
 
 dataloader = DataLoader(
-    ImageDataset("/home/ubuntu/PyTorch-GAN/data/BSR/BSDS500/data/images/train", hr_shape=hr_shape),
+    ImageDataset(opt.dataset_folder, hr_shape=hr_shape),
     batch_size=4,
     shuffle=True,
     num_workers=4,
@@ -73,18 +77,30 @@ for epoch in range(num_epochs):
         # inputs, labels = data
         # inputs = inputs.to(device)
         # labels = labels.to(device)
+        batches_done = epoch * len(dataloader) + i
 
-        inputs = Variable(imgs["lr"].type(Tensor))
-        labels = Variable(imgs["hr"].type(Tensor))
+        imgs_lr = Variable(imgs["lr"].type(Tensor))
+        imgs_hr = Variable(imgs["hr"].type(Tensor))
 
         optimizer.zero_grad()
 
-        outputs = model(inputs)
+        gen_hr = model(imgs_lr)
 
         # Compute the loss only on the new layers
-        loss = criterion_pixel(outputs, labels)
+        loss = criterion_pixel(gen_hr, imgs_hr)
 
         loss.backward()
         optimizer.step()
+
+        if batches_done % opt.sample_interval == 0:
+            # Save image grid with upsampled inputs and ESRGAN outputs
+            imgs_lr = nn.functional.interpolate(imgs_lr, scale_factor=4)
+            # img_grid = denormalize(torch.cat((imgs_lr, gen_hr), -1))
+            img_grid = torch.cat((imgs_lr, gen_hr), -1)
+            save_image(img_grid, "images/training/%d.png" % batches_done, nrow=1, normalize=False)
+
+        if batches_done % opt.checkpoint_interval == 0:
+            # Save model checkpoints
+            torch.save(model.state_dict(), "saved_models/generator_%d.pth" % epoch)
 
         print('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'.format(epoch+1, num_epochs, i+1, len(dataloader), loss.item()))

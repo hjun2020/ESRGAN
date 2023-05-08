@@ -10,3 +10,8 @@
 *.mat
 *.npy
 
+
+*.png
+*.pth
+
+__pycache__/
