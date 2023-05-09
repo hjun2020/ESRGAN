@@ -24,6 +24,13 @@ class ImageDataset(Dataset):
     def __init__(self, root, hr_shape):
         hr_height, hr_width = hr_shape
         # Transforms for low resolution images and high resolution images
+
+        self.common_transform = transforms.Compose(
+            [
+                lambda img: transforms.Resize((hr_height, hr_height), Image.BICUBIC)(img) if min(img.size) < hr_height else img,
+                transforms.RandomCrop(hr_height),
+            ]
+        )
         self.lr_transform = transforms.Compose(
             [
                 transforms.Resize((hr_height // 4, hr_height // 4), Image.BICUBIC),
@@ -32,7 +39,7 @@ class ImageDataset(Dataset):
         )
         self.hr_transform = transforms.Compose(
             [
-                transforms.Resize((hr_height, hr_height), Image.BICUBIC),
+                # transforms.Resize((hr_height, hr_height), Image.BICUBIC),
                 transforms.ToTensor(),
             ]
         )
@@ -41,6 +48,7 @@ class ImageDataset(Dataset):
 
     def __getitem__(self, index):
         img = Image.open(self.files[index % len(self.files)])
+        img = self.common_transform(img)
         img_lr = self.lr_transform(img)
         img_hr = self.hr_transform(img)
 

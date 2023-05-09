@@ -18,8 +18,9 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument("--dataset_folder", type=str, default="/home/ubuntu/PyTorch-GAN/data/BSR/BSDS500/data/images/train", help="name of the dataset")
 parser.add_argument("--hr_height", type=int, default=256, help="high res. image height")
-parser.add_argument("--sample_interval", type=int, default=100, help="interval between saving image samples")
-parser.add_argument("--checkpoint_interval", type=int, default=1000, help="batch interval between model checkpoints")
+parser.add_argument("--sample_interval", type=int, default=1000, help="interval between saving image samples")
+parser.add_argument("--checkpoint_interval", type=int, default=5000, help="batch interval between model checkpoints")
+parser.add_argument("--saved_model_path", type=str, default="", help="name of the dataset")
 opt = parser.parse_args()
 print(opt)
 
@@ -35,7 +36,8 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 model_path = 'models/RRDB_ESRGAN_x4.pth'
 # Define the pre-trained model
 pretrained_model = arch.RRDBNet(3, 3, 64, 23, gc=32)
-pretrained_model.load_state_dict(torch.load(model_path), strict=True)
+if not opt.saved_model_path:
+    pretrained_model.load_state_dict(torch.load(model_path), strict=True)
 pretrained_model.eval()
 
 # Define the new layers to add to the model
@@ -52,8 +54,10 @@ model = nn.Sequential(
     pretrained_model,
     new_layers
 )
-model.load_state_dict(torch.load('saved_models/generator_45.pth'), strict=True)
 model.to(device)
+
+if opt.saved_model_path:
+    model.load_state_dict(torch.load(opt.saved_model_path), strict=True)
 
 criterion_pixel = torch.nn.L1Loss().to(device)
 

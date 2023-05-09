@@ -12,6 +12,7 @@ parser = argparse.ArgumentParser()
 
 
 parser.add_argument("--test_img_folder", type=str, default="LR", help="name of the dataset")
+parser.add_argument("--saved_model_path", type=str, default="LR", help="name of the dataset")
 opt = parser.parse_args()
 print(opt)
 
@@ -43,7 +44,8 @@ model = nn.Sequential(
     pretrained_model,
     new_layers
 )
-model.load_state_dict(torch.load('saved_models/generator_45.pth'), strict=True)
+if opt.saved_model_path:
+    model.load_state_dict(torch.load(opt.saved_model_path), strict=True)
 model.to(device)
 
 print('Model path {:s}. \nTesting...'.format(model_path))
