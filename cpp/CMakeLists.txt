@@ -11,9 +11,12 @@ add_definitions(${OPENCV_CFLAGS_OTHER})
 # include directories for ONNX Runtime headers
 include_directories(/usr/local/include)
 
+find_package(Threads REQUIRED)
+find_package(PkgConfig REQUIRED)
+
 # link directories for ONNX Runtime library
 link_directories(/usr/local/lib)
 
-add_executable(esrgan esrgan.cpp)
-target_link_libraries(esrgan "${OpenCV_LIBS}" "${TORCH_LIBRARIES}" onnxruntime)
-set_property(TARGET esrgan PROPERTY CXX_STANDARD 14)
+add_executable(esrgan_video esrgan_video.cpp)
+target_link_libraries(esrgan_video "${OpenCV_LIBS}" "${TORCH_LIBRARIES}" onnxruntime Threads::Threads)
+set_property(TARGET esrgan_video PROPERTY CXX_STANDARD 14)

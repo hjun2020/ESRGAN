@@ -64,8 +64,8 @@ int main(int argc, const char* argv[]) {
     cv::Mat image = cv::imread(argv[2], cv::IMREAD_COLOR);
 
         // Convert to float and normalize
-    cv::Size size(64, 64);  // define the new size of the image
-    cv::resize(image, image, size);  // resize the image
+    // cv::Size size(64, 64);  // define the new size of the image
+    // cv::resize(image, image, size);  // resize the image
     imwrite("original_input.jpg", image);
     image.convertTo(image, CV_32FC3, 1.0 / 255.0);  // Convert to float and scale to [0, 1]
 
