@@ -43,8 +43,8 @@ static void load_input_mat_demo()
     // input_im_buffer[buff_index%3].detach();
     cv::Mat image= get_mat_from_stream(cap);
     image.convertTo(image, CV_32FC3, 1.0 / 255.0);  // Convert to float and scale to [0, 1]
-    cv::Size size(100, 80);  // define the new size of the image
-    cv::resize(image, image, size);  // resize the image
+    // cv::Size size(100, 80);  // define the new size of the image
+    // cv::resize(image, image, size);  // resize the image
     // cv::subtract(image, mean_demo, image);  // Subtract mean values from each channel
     // cv::divide(image, std_demo, image);  // Divide each channel by standard deviation values
 
