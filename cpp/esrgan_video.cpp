@@ -75,6 +75,9 @@ static void *convert_output_tensor_demo(void *args)
 
     // cv::multiply(output_image, std_demo, output_image);  // Multiply each channel by standard deviation values
     // cv::add(output_image, mean_demo, output_image);  // Add mean values to each channel
+    
+    cv::Size size(100*4, 80*4);  // define the new size of the image
+    cv::resize(output_image, output_image, size);  // resize the image
 
     cv::cvtColor(output_image, output_image, cv::COLOR_BGR2RGB);
     output_image *= 255.0;
@@ -178,31 +181,46 @@ int main(int argc, const char* argv[]) {
 
 
     while(1){
-        // memcpy(pred_buffer[t%3], network_predict_data_to_float(net, d), net->outputs*args.n*sizeof(float));
-        // if(pthread_create(&load_input_thread, NULL, load_input_mat_demo, NULL)) error("Thread creation failed");
-        // if(pthread_create(&inference_thread, NULL, inference_demo, NULL)) error("Thread creation failed");
-        // if(pthread_create(&convert_output_thread, NULL, convert_output_tensor_demo, NULL)) error("Thread creation failed");
-        pthread_create(&load_input_thread, NULL, load_input_mat_demo, NULL);
-        pthread_create(&inference_thread, NULL, inference_demo, NULL);
-        pthread_create(&convert_output_thread, NULL, convert_output_tensor_demo, NULL);
+        std::chrono::duration<int, std::milli> sleep_duration(100);
 
-        pthread_join(load_input_thread,0);
-        pthread_join(inference_thread,0);
-        pthread_join(convert_output_thread,0);
-        output_im_buffer[buff_index].convertTo(output_im_buffer[buff_index], CV_8U);
+        // pthread_create(&load_input_thread, NULL, load_input_mat_demo, NULL);
+        load_input_mat_demo(NULL);
+        std::this_thread::sleep_for(sleep_duration);
+
+        // pthread_create(&inference_thread, NULL, inference_demo, NULL);
+        inference_demo(NULL);
+        std::this_thread::sleep_for(sleep_duration);
+
+        // pthread_create(&convert_output_thread, NULL, convert_output_tensor_demo, NULL);
+        convert_output_tensor_demo(NULL);
+        std::this_thread::sleep_for(sleep_duration);
+
+        // pthread_join(load_input_thread,0);
+        // pthread_join(inference_thread,0);
+        // pthread_join(convert_output_thread,0);
+
+
+        // std::thread convert_thread(convert_output_tensor_demo, NULL);
+        // std::thread load_thread(load_input_mat_demo, NULL);
+        // std::thread inference_thread(inference_demo, NULL);
+
+        //     // Wait for threads to finish
+        // convert_thread.join();
+        // load_thread.join();
+        // inference_thread.join();
 
         std::stringstream ss;
         ss << "image" << count << ".jpg";
         std::string filename = ss.str();
         // if (count > 5) cv::imwrite(filename, output_im_buffer[(buff_index+1)%3]);
-        std::chrono::duration<int, std::milli> sleep_duration(500);
         std::this_thread::sleep_for(sleep_duration);
         if (count > 5) {
           cv::Mat img_8u;
           output_im_buffer[(buff_index+1)%3].convertTo(img_8u, CV_8U);
+          std::this_thread::sleep_for(sleep_duration);
           writer.write(img_8u);
         }
-
+        std::this_thread::sleep_for(sleep_duration);
         
 
         buff_index = (buff_index+1)%3;
