@@ -18,5 +18,5 @@ find_package(PkgConfig REQUIRED)
 link_directories(/usr/local/lib)
 
 add_executable(esrgan_video esrgan_video.cpp)
-target_link_libraries(esrgan_video "${OpenCV_LIBS}" "${TORCH_LIBRARIES}" onnxruntime Threads::Threads)
+target_link_libraries(esrgan_video "${OpenCV_LIBS}" "${TORCH_LIBRARIES}" onnxruntime Threads::Threads pthread)
 set_property(TARGET esrgan_video PROPERTY CXX_STANDARD 14)

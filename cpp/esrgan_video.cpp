@@ -14,11 +14,12 @@
 #include <pthread.h>
 #include <thread>
 using namespace cv;
-static torch::Tensor input_im_buffer[3];
-static torch::Tensor net_output_buffer[3];
+using namespace std;
+static torch::Tensor input_im_buffer[5];
+static torch::Tensor net_output_buffer[5];
 static void * cap;
 static int buff_index = 0;
-static cv::Mat output_im_buffer[3];
+static cv::Mat output_im_buffer[5];
 
 static torch::jit::script::Module module;
 static cv::Scalar mean_demo = {0.485, 0.456, 0.406};  // Define mean values
@@ -35,10 +36,10 @@ static Mat get_mat_from_stream(void *p)
     return m;
 }
 
-static void *load_input_mat_demo(void *args)
+static void load_input_mat_demo()
 {
 
-    // free(input_im_buffer[buff_index%3]);
+    // free(input_im_buffer[buff_index%5]);
     // input_im_buffer[buff_index%3].detach();
     cv::Mat image= get_mat_from_stream(cap);
     image.convertTo(image, CV_32FC3, 1.0 / 255.0);  // Convert to float and scale to [0, 1]
@@ -57,13 +58,13 @@ static void *load_input_mat_demo(void *args)
 
     input_tensor = input_tensor.to(torch::kCUDA);
 
-    input_im_buffer[buff_index%3] = input_tensor;
+    input_im_buffer[buff_index%5] = input_tensor;
 
 }
 
-static void *convert_output_tensor_demo(void *args)
+static void convert_output_tensor_demo(int count)
 {
-    torch::Tensor output_tensor = net_output_buffer[(buff_index+2)%3];
+    torch::Tensor output_tensor = net_output_buffer[(buff_index+2)%5];
     output_tensor = output_tensor.permute({0, 2, 3, 1});
     output_tensor = output_tensor.to(torch::kCPU);
     // std::cout << "Shape after permutation: " << output_tensor.size(0) << " " <<output_tensor.size(1) << " "<< output_tensor.size(2) << " "<<  output_tensor.size(3) << std::endl;
@@ -81,15 +82,27 @@ static void *convert_output_tensor_demo(void *args)
 
     cv::cvtColor(output_image, output_image, cv::COLOR_BGR2RGB);
     output_image *= 255.0;
-    output_im_buffer[(buff_index+2)%3] = output_image;
+    std::stringstream ss;
+    ss << "image" << count << ".jpg";
+    std::string filename = ss.str();
+    cv::imwrite(filename, output_image);
+    output_im_buffer[(buff_index+2)%5] = output_image;
 
 }
 
-static void *inference_demo(void *args)
+static void inference_demo()
 {
 
-    net_output_buffer[(buff_index+1)%3] = module.forward({input_im_buffer[(buff_index+1)%3]}).toTensor();
+    net_output_buffer[(buff_index+1)%5] = module.forward({input_im_buffer[(buff_index+1)%5]}).toTensor();
 
+}
+
+static void save_demo(int count){
+  if (count < 6) return;
+  // std::stringstream ss;
+  // ss << "image" << count << ".jpg";
+  // std::string filename = ss.str();
+  // cv::imwrite(filename, output_im_buffer[(buff_index+3)%5]);
 }
 
 void *display_in_thread_srcnn_demo(void *args)
@@ -127,6 +140,8 @@ void *open_video_stream(const char *f, int c, int w, int h, int fps)
     return (void *) cap;
 }
 
+static const size_t num = 4;
+
 int main(int argc, const char* argv[]) {
   if (argc != 3) {
     std::cerr << "usage: example-app <path-to-exported-script-module>\n";
@@ -148,26 +163,17 @@ int main(int argc, const char* argv[]) {
     cap = open_video_stream(filename, 0, 0, 0, 0);
     }
 
-    pthread_t load_input_thread;
-    pthread_t inference_thread;
-    pthread_t convert_output_thread;
 
-    for(int i=0; i<3; i++){
-      load_input_mat_demo(0);
-      buff_index = (buff_index+1)%3;
+    for(int i=0; i<5; i++){
+      load_input_mat_demo();
+      buff_index = (buff_index+1)%5;
     }
 
-    for(int i=0; i<3; i++){
-      inference_demo(0);
-      buff_index = (buff_index+1)%3;
+    for(int i=0; i<5; i++){
+      inference_demo();
+      buff_index = (buff_index+1)%5;
     }
 
-    // for(int i=0; i<3; i++){
-    //   convert_output_tensor_demo();
-    //   buff_index = (buff_index+1)%3;
-    // }
-
-    // imwrite("inference_buff_output.jpg", output_im_buffer[2]);
     auto start_time = std::chrono::high_resolution_clock::now();  
     void *ptr;
     int count = 0;
@@ -180,50 +186,32 @@ int main(int argc, const char* argv[]) {
     cv::VideoWriter writer("output_video.mp4", fourcc, fps, cv::Size(100*4, 80*4));
 
 
+
+    std::chrono::duration<int, std::milli> sleep_duration(100);
+    thread greeters[num];
     while(1){
-        std::chrono::duration<int, std::milli> sleep_duration(100);
+        greeters[0] = thread(convert_output_tensor_demo, count);
+        greeters[1] = thread(load_input_mat_demo);
+        greeters[2] = thread(inference_demo);
+        greeters[3] = thread(save_demo, count);
 
-        // pthread_create(&load_input_thread, NULL, load_input_mat_demo, NULL);
-        load_input_mat_demo(NULL);
-        std::this_thread::sleep_for(sleep_duration);
+        // Wait for threads to finish
+        for(thread &greeter: greeters){
+          greeter.join();
+        }
 
-        // pthread_create(&inference_thread, NULL, inference_demo, NULL);
-        inference_demo(NULL);
-        std::this_thread::sleep_for(sleep_duration);
-
-        // pthread_create(&convert_output_thread, NULL, convert_output_tensor_demo, NULL);
-        convert_output_tensor_demo(NULL);
-        std::this_thread::sleep_for(sleep_duration);
-
-        // pthread_join(load_input_thread,0);
-        // pthread_join(inference_thread,0);
-        // pthread_join(convert_output_thread,0);
-
-
-        // std::thread convert_thread(convert_output_tensor_demo, NULL);
-        // std::thread load_thread(load_input_mat_demo, NULL);
-        // std::thread inference_thread(inference_demo, NULL);
-
-        //     // Wait for threads to finish
-        // convert_thread.join();
-        // load_thread.join();
-        // inference_thread.join();
-
-        std::stringstream ss;
-        ss << "image" << count << ".jpg";
-        std::string filename = ss.str();
+        // std::stringstream ss;
+        // ss << "image" << count << ".jpg";
+        // std::string filename = ss.str();
         // if (count > 5) cv::imwrite(filename, output_im_buffer[(buff_index+1)%3]);
-        std::this_thread::sleep_for(sleep_duration);
         if (count > 5) {
           cv::Mat img_8u;
-          output_im_buffer[(buff_index+1)%3].convertTo(img_8u, CV_8U);
-          std::this_thread::sleep_for(sleep_duration);
+          output_im_buffer[(buff_index+1)%5].convertTo(img_8u, CV_8U);
           writer.write(img_8u);
         }
-        std::this_thread::sleep_for(sleep_duration);
         
 
-        buff_index = (buff_index+1)%3;
+        buff_index = (buff_index+1)%5;
         count++;
 
         if(count>100) break;
