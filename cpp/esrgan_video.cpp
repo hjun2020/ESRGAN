@@ -53,12 +53,15 @@ static void load_input_mat_demo()
 
     // Convert the input image to a Torch tensor
     torch::Tensor input_tensor = torch::from_blob(image.data, {1, image.rows, image.cols, 3}, torch::kFloat);
+    // torch::Tensor input_tensor1 = input_tensor.view({1, 3, 50, 50});
+
     input_tensor = input_tensor.permute({0, 3, 1, 2});
+    torch::Tensor input_tensor1 = input_tensor.slice(2, 0, 80).slice(3, 0, 100);
     
 
-    input_tensor = input_tensor.to(torch::kCUDA);
+    input_tensor1 = input_tensor1.to(torch::kCUDA);
 
-    input_im_buffer[buff_index%5] = input_tensor;
+    input_im_buffer[buff_index%5] = input_tensor1;
 
 }
 
