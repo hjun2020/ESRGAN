@@ -21,6 +21,8 @@ static void * cap;
 static int buff_index = 0;
 static cv::Mat output_im_buffer[5];
 
+static array<array<torch::Tensor, 4>, 5> tensorArray;
+
 static torch::jit::script::Module module;
 static cv::Scalar mean_demo = {0.485, 0.456, 0.406};  // Define mean values
 static cv::Scalar std_demo = {0.229, 0.224, 0.225};  // Define standard deviation values
@@ -61,7 +63,8 @@ static void load_input_mat_demo()
 
     input_tensor1 = input_tensor1.to(torch::kCUDA);
 
-    input_im_buffer[buff_index%5] = input_tensor1;
+    // input_im_buffer[buff_index%5] = input_tensor1;
+    tensorArray[buff_index%5][0] = input_tensor1;
 
 }
 
@@ -85,18 +88,18 @@ static void convert_output_tensor_demo(int count)
 
     cv::cvtColor(output_image, output_image, cv::COLOR_BGR2RGB);
     output_image *= 255.0;
-    std::stringstream ss;
-    ss << "image" << count << ".jpg";
-    std::string filename = ss.str();
-    cv::imwrite(filename, output_image);
-    output_im_buffer[(buff_index+2)%5] = output_image;
+    // std::stringstream ss;
+    // ss << "image" << count << ".jpg";
+    // std::string filename = ss.str();
+    // cv::imwrite(filename, output_image);
+    output_im_buffer[(buff_index+2)%5] = output_image.clone();
 
 }
 
 static void inference_demo()
 {
 
-    net_output_buffer[(buff_index+1)%5] = module.forward({input_im_buffer[(buff_index+1)%5]}).toTensor();
+    net_output_buffer[(buff_index+1)%5] = module.forward({tensorArray[(buff_index+1)%5][0]}).toTensor();
 
 }
 
@@ -217,7 +220,7 @@ int main(int argc, const char* argv[]) {
         buff_index = (buff_index+1)%5;
         count++;
 
-        if(count>100) break;
+        if(count>400) break;
     }
     writer.release();
 
