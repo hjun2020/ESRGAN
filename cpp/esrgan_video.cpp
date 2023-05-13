@@ -16,12 +16,16 @@
 using namespace cv;
 using namespace std;
 static torch::Tensor input_im_buffer[5];
-static torch::Tensor net_output_buffer[5];
+// static torch::Tensor net_output_buffer[5];
 static void * cap;
 static int buff_index = 0;
 static cv::Mat output_im_buffer[5];
 
 static array<array<torch::Tensor, 4>, 5> tensorArray;
+
+static array<array<cv::Mat, 4>, 5> net_output_buffer;
+
+
 
 static torch::jit::script::Module module;
 static cv::Scalar mean_demo = {0.485, 0.456, 0.406};  // Define mean values
@@ -58,51 +62,69 @@ static void load_input_mat_demo()
     // torch::Tensor input_tensor1 = input_tensor.view({1, 3, 50, 50});
 
     input_tensor = input_tensor.permute({0, 3, 1, 2});
-    torch::Tensor input_tensor1 = input_tensor.slice(2, 0, 80).slice(3, 0, 100);
+    torch::Tensor input_tensor1 = input_tensor.slice(2, 0, 100).slice(3, 0, 100).to(torch::kCUDA);
     
 
-    input_tensor1 = input_tensor1.to(torch::kCUDA);
+    // input_tensor1 = input_tensor1;
 
     // input_im_buffer[buff_index%5] = input_tensor1;
     tensorArray[buff_index%5][0] = input_tensor1;
+
+    torch::Tensor input_tensor2 = input_tensor.slice(2, 100, 200).slice(3, 0, 100).to(torch::kCUDA);
+    // input_tensor2 = input_tensor2;
+    tensorArray[buff_index%5][1] = input_tensor2;
 
 }
 
 static void convert_output_tensor_demo(int count)
 {
-    torch::Tensor output_tensor = net_output_buffer[(buff_index+2)%5];
-    output_tensor = output_tensor.permute({0, 2, 3, 1});
-    output_tensor = output_tensor.to(torch::kCPU);
+    cv::Mat output_image = net_output_buffer[(buff_index+2)%5][0];
+
     // std::cout << "Shape after permutation: " << output_tensor.size(0) << " " <<output_tensor.size(1) << " "<< output_tensor.size(2) << " "<<  output_tensor.size(3) << std::endl;
 
 
     // // // Convert the output tensor to a cv::Mat object
-    cv::Mat output_image(output_tensor.size(1), output_tensor.size(2), CV_32FC3, output_tensor.data_ptr<float>());
+    // cv::Mat output_image(output_tensor.size(1), output_tensor.size(2), CV_32FC3, output_tensor.data_ptr<float>());
     // output_image *= 255.0;
 
     // cv::multiply(output_image, std_demo, output_image);  // Multiply each channel by standard deviation values
     // cv::add(output_image, mean_demo, output_image);  // Add mean values to each channel
     
-    cv::Size size(100*4, 80*4);  // define the new size of the image
-    cv::resize(output_image, output_image, size);  // resize the image
+    // cv::Size size(100*4, 100*4);  // define the new size of the image
+    // cv::resize(output_image, output_image, size);  // resize the image
 
-    cv::cvtColor(output_image, output_image, cv::COLOR_BGR2RGB);
-    output_image *= 255.0;
+
+    cv::Mat concatenatedImage;
+
+    // Concatenate the images horizontally
+    cv::hconcat(net_output_buffer[(buff_index+2)%5][0], net_output_buffer[(buff_index+2)%5][1], concatenatedImage);
+
+    cv::cvtColor(concatenatedImage, concatenatedImage, cv::COLOR_BGR2RGB);
+    concatenatedImage *= 255.0;
+
     // std::stringstream ss;
     // ss << "image" << count << ".jpg";
     // std::string filename = ss.str();
     // cv::imwrite(filename, output_image);
-    output_im_buffer[(buff_index+2)%5] = output_image.clone();
+    output_im_buffer[(buff_index+2)%5] = concatenatedImage.clone();
 
 }
 
 static void inference_demo()
 {
 
-    net_output_buffer[(buff_index+1)%5] = module.forward({tensorArray[(buff_index+1)%5][0]}).toTensor();
+    for(int i=0; i<2; i++){
 
+      torch::Tensor output = module.forward({tensorArray[(buff_index+1)%5][i]}).toTensor();
+      output = output.to(torch::kCPU);
+      output = output.permute({0, 2, 3, 1});
+      cv::Mat output_image(output.size(1), output.size(2), CV_32FC3, output.data_ptr<float>());
+      net_output_buffer[(buff_index+1)%5][i] = output_image.clone();
+    }
+
+    
 }
-
+ 
 static void save_demo(int count){
   if (count < 6) return;
   // std::stringstream ss;
@@ -189,7 +211,7 @@ int main(int argc, const char* argv[]) {
     int fps = cap1.get(cv::CAP_PROP_FPS);
     int width = cap1.get(cv::CAP_PROP_FRAME_WIDTH);
     int height = cap1.get(cv::CAP_PROP_FRAME_HEIGHT);
-    cv::VideoWriter writer("output_video.mp4", fourcc, fps, cv::Size(100*4, 80*4));
+    cv::VideoWriter writer("output_video.mp4", fourcc, fps, cv::Size(200*4, 100*4));
 
 
 
