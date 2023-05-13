@@ -13,6 +13,7 @@
 
 #include <pthread.h>
 #include <thread>
+#include <vector>
 using namespace cv;
 using namespace std;
 static torch::Tensor input_im_buffer[5];
@@ -21,16 +22,37 @@ static void * cap;
 static int buff_index = 0;
 static cv::Mat output_im_buffer[5];
 
-static array<array<torch::Tensor, 4>, 5> tensorArray;
+static array<array<torch::Tensor, 12>, 5> tensorArray;
 
-static array<array<cv::Mat, 4>, 5> net_output_buffer;
+static array<array<cv::Mat, 12>, 5> net_output_buffer;
 
+static vector<vector<cv::Mat>> net_output_vector(3, std::vector<cv::Mat>(4));
+
+static int rows;
+static int cols;
+
+static vector<int> row_pts;
+static vector<int> col_pts;
 
 
 static torch::jit::script::Module module;
-static cv::Scalar mean_demo = {0.485, 0.456, 0.406};  // Define mean values
-static cv::Scalar std_demo = {0.229, 0.224, 0.225};  // Define standard deviation values
 
+std::vector<int> divideInteger(int n, int d) {
+    std::vector<int> parts(d+1, n / d);  // Initialize all parts with the equal quotient
+    parts[0] = 0;
+    int remainder = n % d;  // Calculate the remainder
+
+    // Distribute the remainder among the parts
+    for (int i = 0; i < remainder; ++i) {
+        parts[i+1]++;
+    }
+
+    for (int i = 1; i < d+1; ++i) {
+        parts[i] += parts[i-1];
+    }
+
+    return parts;
+}
 
 
 static Mat get_mat_from_stream(void *p)
@@ -61,18 +83,16 @@ static void load_input_mat_demo()
     torch::Tensor input_tensor = torch::from_blob(image.data, {1, image.rows, image.cols, 3}, torch::kFloat);
     // torch::Tensor input_tensor1 = input_tensor.view({1, 3, 50, 50});
 
+    cout << image.rows << " " << image.cols << endl;
+
+
     input_tensor = input_tensor.permute({0, 3, 1, 2});
-    torch::Tensor input_tensor1 = input_tensor.slice(2, 0, 100).slice(3, 0, 100).to(torch::kCUDA);
-    
-
-    // input_tensor1 = input_tensor1;
-
-    // input_im_buffer[buff_index%5] = input_tensor1;
-    tensorArray[buff_index%5][0] = input_tensor1;
-
-    torch::Tensor input_tensor2 = input_tensor.slice(2, 100, 200).slice(3, 0, 100).to(torch::kCUDA);
-    // input_tensor2 = input_tensor2;
-    tensorArray[buff_index%5][1] = input_tensor2;
+    for(int i=0; i < 12; i++){
+      int r = i / cols + 1;
+      int c = i % cols + 1;
+      torch::Tensor input_tensor1 = input_tensor.slice(2, row_pts[r-1], row_pts[r]).slice(3, col_pts[c-1], col_pts[c]).to(torch::kCUDA);
+      tensorArray[buff_index%5][i] = input_tensor1;
+    }
 
 }
 
@@ -102,10 +122,10 @@ static void convert_output_tensor_demo(int count)
     cv::cvtColor(concatenatedImage, concatenatedImage, cv::COLOR_BGR2RGB);
     concatenatedImage *= 255.0;
 
-    // std::stringstream ss;
-    // ss << "image" << count << ".jpg";
-    // std::string filename = ss.str();
-    // cv::imwrite(filename, output_image);
+    std::stringstream ss;
+    ss << "image" << count << ".jpg";
+    std::string filename = ss.str();
+    cv::imwrite(filename, concatenatedImage);
     output_im_buffer[(buff_index+2)%5] = concatenatedImage.clone();
 
 }
@@ -113,7 +133,7 @@ static void convert_output_tensor_demo(int count)
 static void inference_demo()
 {
 
-    for(int i=0; i<2; i++){
+    for(int i=0; i<12; i++){
 
       torch::Tensor output = module.forward({tensorArray[(buff_index+1)%5][i]}).toTensor();
       output = output.to(torch::kCPU);
@@ -190,7 +210,24 @@ int main(int argc, const char* argv[]) {
     printf("video file: %s\n", filename);
     cap = open_video_stream(filename, 0, 0, 0, 0);
     }
+    // Create the output video writer
+    cv::VideoCapture cap1(argv[2]);
+    int fourcc = cv::VideoWriter::fourcc('a', 'v', 'c', '1');
+    int fps = cap1.get(cv::CAP_PROP_FPS);
+    int img_width = cap1.get(cv::CAP_PROP_FRAME_WIDTH);
+    int img_height = cap1.get(cv::CAP_PROP_FRAME_HEIGHT);
 
+    rows = 3;
+    cols = 4;
+
+    row_pts = divideInteger(img_height, rows);
+    col_pts = divideInteger(img_width, cols);
+
+    std::cout << "Divided parts: ";
+    for (const auto& part : row_pts) {
+        std::cout << part << " ";
+    }
+    std::cout << std::endl;
 
     for(int i=0; i<5; i++){
       load_input_mat_demo();
@@ -205,13 +242,10 @@ int main(int argc, const char* argv[]) {
     auto start_time = std::chrono::high_resolution_clock::now();  
     void *ptr;
     int count = 0;
-    // Create the output video writer
-    cv::VideoCapture cap1(argv[2]);
-    int fourcc = cv::VideoWriter::fourcc('a', 'v', 'c', '1');
-    int fps = cap1.get(cv::CAP_PROP_FPS);
-    int width = cap1.get(cv::CAP_PROP_FRAME_WIDTH);
-    int height = cap1.get(cv::CAP_PROP_FRAME_HEIGHT);
-    cv::VideoWriter writer("output_video.mp4", fourcc, fps, cv::Size(200*4, 100*4));
+
+    cv::VideoWriter writer("output_video.mp4", fourcc, fps, cv::Size(88*2*4, 80*4));
+
+
 
 
 
@@ -237,12 +271,12 @@ int main(int argc, const char* argv[]) {
           output_im_buffer[(buff_index+1)%5].convertTo(img_8u, CV_8U);
           writer.write(img_8u);
         }
-        
+         
 
         buff_index = (buff_index+1)%5;
         count++;
 
-        if(count>400) break;
+        if(count>50) break;
     }
     writer.release();
 
