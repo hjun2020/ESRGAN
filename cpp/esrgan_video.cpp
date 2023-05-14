@@ -22,17 +22,19 @@ static void * cap;
 static int buff_index = 0;
 static cv::Mat output_im_buffer[5];
 
-static array<array<torch::Tensor, 18>, 5> tensorArray;
 
-static array<array<cv::Mat, 18>, 5> net_output_buffer;
+static vector<vector<torch::Tensor>> tensorArray;
+static vector<vector<cv::Mat>> net_output_buffer;
+static vector<vector<vector<Mat>>> net_output_vector;
 
-static vector<vector<vector<Mat>>> net_output_vector(5, vector<vector<Mat>>(3, vector<Mat>(6)));
 
 static int rows;
 static int cols;
 
 static vector<int> row_pts;
 static vector<int> col_pts;
+
+static int demo_done = 1;
 
 
 static torch::jit::script::Module module;
@@ -79,7 +81,12 @@ static Mat get_mat_from_stream(void *p)
     VideoCapture *cap = (VideoCapture *)p;
     Mat m;
     *cap >> m;
-    // if(m.empty()) return make_empty_image(0,0,0);
+    if(m.empty()){
+      demo_done=0;
+      Mat a;
+     return a;
+    }
+      
     return m;
 }
 
@@ -87,6 +94,8 @@ static void load_input_mat_demo()
 {
     cv::Mat image= get_mat_from_stream(cap);
     image.convertTo(image, CV_32FC3, 1.0 / 255.0);  // Convert to float and scale to [0, 1]
+
+    if(demo_done ==0) return;
     cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
 
     // Convert the input image to a Torch tensor
@@ -181,20 +190,33 @@ int main(int argc, const char* argv[]) {
     int img_height = temp_cap.get(cv::CAP_PROP_FRAME_HEIGHT);
 
     rows = 3;
-    cols = 6;
+    cols = 4;
 
     col_pts = divideInteger(img_width, cols);
     row_pts = divideInteger(img_height, rows);
 
+
+    tensorArray.resize(5, vector<torch::Tensor>(rows*cols));
+    net_output_buffer.resize(5, vector<Mat>(rows*cols));
+    net_output_vector.resize(5, vector<vector<Mat>>(rows, vector<Mat>(cols)));
+
+
     cout << img_height << " " <<  img_width << endl;
 
-    for(int i=0; i<5; i++){
-      load_input_mat_demo();
-      buff_index = (buff_index+1)%5;
+
+
+    load_input_mat_demo();
+    for (size_t i = 1; i < tensorArray.size(); ++i) {
+        std::copy(tensorArray[0].begin(), tensorArray[0].end(), tensorArray[i].begin());
     }
 
     for(int i=0; i<5; i++){
       inference_demo();
+      buff_index = (buff_index+1)%5;
+    }
+
+    for(int i=0; i<5; i++){
+      convert_output_tensor_demo(i);
       buff_index = (buff_index+1)%5;
     }
 
@@ -206,7 +228,7 @@ int main(int argc, const char* argv[]) {
 
     std::chrono::duration<int, std::milli> sleep_duration(100);
     thread greeters[num];
-    while(1){
+    while(demo_done){
         greeters[0] = thread(convert_output_tensor_demo, count);
         greeters[1] = thread(load_input_mat_demo);
         greeters[2] = thread(inference_demo);
@@ -215,17 +237,17 @@ int main(int argc, const char* argv[]) {
         for(thread &greeter: greeters){
           greeter.join();
         }
-        if (count > 5) {
-          cv::Mat img_8u;
-          output_im_buffer[(buff_index+1)%5].convertTo(img_8u, CV_8U);
-          writer.write(img_8u);
-        }
+        // if (count > 5) {
+        cv::Mat img_8u;
+        output_im_buffer[(buff_index+1)%5].convertTo(img_8u, CV_8U);
+        writer.write(img_8u);
+        // }
          
 
         buff_index = (buff_index+1)%5;
         count++;
 
-        if(count>50) break;
+        // if(count>50) break;
         
         if(count % 100 == 0) cout << "current frame is " <<  count << endl;
     }
