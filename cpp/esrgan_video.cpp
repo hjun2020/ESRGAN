@@ -189,7 +189,7 @@ int main(int argc, const char* argv[]) {
     int img_width = temp_cap.get(cv::CAP_PROP_FRAME_WIDTH);
     int img_height = temp_cap.get(cv::CAP_PROP_FRAME_HEIGHT);
 
-    rows = 3;
+    rows = 2;
     cols = 4;
 
     col_pts = divideInteger(img_width, cols);
