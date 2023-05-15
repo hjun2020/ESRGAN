@@ -22,10 +22,15 @@ mkdir build
 cd build
 
 ```
-2. Place your own **low-resolution images** in `./LR` folder. (There are two sample images - baboon and comic).
+2. in `build` folder:
+```
+cmake -DCMAKE_PREFIX_PATH=/path/to/libtorch ..
+cmake --build . --config Release
+```
+2. Place your own **low-resolution .mp4 video file ** in `./LR` folder.
 3. Download pretrained models from [Google Drive](https://drive.google.com/drive/u/0/folders/17VYV_SoZZesU6mbxz2dMAIccSSlqLecY) or [Baidu Drive](https://pan.baidu.com/s/1-Lh6ma-wXzfH8NqeBtPaFQ). Place the models in `./models`. We provide two models with high perceptual quality and high PSNR performance (see [model list](https://github.com/xinntao/ESRGAN/tree/master/models)).
-4. Run test. We provide ESRGAN model and RRDB_PSNR model and you can config in the `test.py`.
+4. Run test. In `build` folder, 
 ```
-python test.py
+./esrgan_video ../../models/generator_ex_gpu.pt ../../LR/{your_video_file}.mp4
 ```
-5. The results are in `./results` folder.
+5. The results are in `./cpp/build` folder.
