@@ -28,7 +28,7 @@ cmake -DCMAKE_PREFIX_PATH=/path/to/libtorch ..
 cmake --build . --config Release
 ```
 2. Place your own **low-resolution .mp4 video file ** in `./LR` folder.
-3. Download pretrained models from [Google Drive](https://drive.google.com/drive/u/0/folders/17VYV_SoZZesU6mbxz2dMAIccSSlqLecY) or [Baidu Drive](https://pan.baidu.com/s/1-Lh6ma-wXzfH8NqeBtPaFQ). Place the models in `./models`. We provide two models with high perceptual quality and high PSNR performance (see [model list](https://github.com/xinntao/ESRGAN/tree/master/models)).
+3. Download pretrained models from [Google Drive](https://drive.google.com/file/d/16wH3wcOle33Dld4CXMIuupccq5nbSv-p/view?usp=sharing).
 4. Run test. In `build` folder, 
 ```
 ./esrgan_video ../../models/generator_ex_gpu.pt ../../LR/{your_video_file}.mp4
