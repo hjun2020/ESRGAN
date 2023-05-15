@@ -8,14 +8,19 @@ This project makes use of the architecture and pretrained model provided by Real
 ## Quick Test
 #### Dependencies
 - Python 3
-- [PyTorch >= 1.0](https://pytorch.org/) (CUDA version >= 7.5 if installing with CUDA. [More details](https://pytorch.org/get-started/previous-versions/))
-- Python packages:  `pip install numpy opencv-python`
+- Libtorch 
+- CUDA version >= 11.0
+- opcvcv >= 3.0
+
 
 ### Test models
 1. Clone this github repo.
 ```
 git clone https://github.com/hjun2020/ESRGAN
-cd ESRGAN
+cd ESRGAN/cpp
+mkdir build
+cd build
+
 ```
 2. Place your own **low-resolution images** in `./LR` folder. (There are two sample images - baboon and comic).
 3. Download pretrained models from [Google Drive](https://drive.google.com/drive/u/0/folders/17VYV_SoZZesU6mbxz2dMAIccSSlqLecY) or [Baidu Drive](https://pan.baidu.com/s/1-Lh6ma-wXzfH8NqeBtPaFQ). Place the models in `./models`. We provide two models with high perceptual quality and high PSNR performance (see [model list](https://github.com/xinntao/ESRGAN/tree/master/models)).
