@@ -1,7 +1,8 @@
 ## ESRGAN(Enhanced SRGAN)-Video application  [:rocket: [BasicSR](https://github.com/xinntao/BasicSR)] [[Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN)]
 
 :sparkles: **Notice.**
-This project makes use of the architecture and pretrained model provided by Real-ESRGAN(https://github.com/xinntao/Real-ESRGAN). Using the model's architecture and pretrained weights, I converted it into a C++ Torch module and applied it to the video file.
+This project makes use of the architecture and pretrained model provided by Real-ESRGAN(https://github.com/xinntao/Real-ESRGAN). Using the model's architecture and pretrained weights, I converted it into a C++ Torch module using TorchScript and applied it to the video file. It processes a frame approximately a second, 1 fps(frame per seconds). 
+I made a demo video on Youtube, https://www.youtube.com/watch?v=vhp8mT9sG5o.
 
 
 
